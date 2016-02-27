@@ -173,12 +173,12 @@ static void init_complex_metatable(lua_State *L, const char *metatable_name, con
 
 	// create methods table, & add it to the table of globals
 	lua_newtable(L);
-	luaL_setfuncs(L, methods, 0);
+	luaL_register(L, NULL, methods);
 	int methods_stack = lua_gettop(L);
 
 	// create meta-table for object, & add it to the registry
 	luaL_newmetatable(L, metatable_name);
-	luaL_setfuncs(L, metamethods, 0); // fill meta-table
+	luaL_register(L, NULL, metamethods); // fill meta-table
 	int metatable_stack = lua_gettop(L);
 
 	lua_pushliteral(L, "__metatable");
@@ -215,7 +215,7 @@ static void init_metatable(lua_State *L, const char *metatable, const struct lua
 	lua_settable(L, -3); // meta-table.__index = meta-table
 
 	// meta-table already on the stack
-	luaL_setfuncs(L, lib, 0);
+	luaL_register(L, NULL, lib);
 	lua_pop(L, 1);
 }
 
@@ -287,10 +287,10 @@ static string bool_to_string(int boolean) {
  *  Check for a DB type.
  */
 static DB *check_database(lua_State *L, int index) {
-	void *ud = luaL_checkudata(L, 1, LVLDB_MT_DB);
+	DB **ud = (DB**) luaL_checkudata(L, 1, LVLDB_MT_DB);
 	luaL_argcheck(L, ud != NULL, 1, "'database' expected");
 
-	return (DB *) ud;
+	return *ud;
 }
 
 /**
@@ -331,10 +331,10 @@ static WriteOptions *check_write_options(lua_State *L, int index) {
  * Check for an Iterator type.
  */
 static Iterator *check_iter(lua_State *L) {
-	void *ud = luaL_checkudata(L, 1, LVLDB_MT_ITER);
+	Iterator **ud = (Iterator**) luaL_checkudata(L, 1, LVLDB_MT_ITER);
 	luaL_argcheck(L, ud != NULL, 1, "'iterator' expected");
 
-	return (Iterator *) ud;
+	return *ud;
 }
 
 /**
@@ -373,8 +373,8 @@ static int lvldb_open(lua_State *L) {
 		cerr << "lvldb_open: Error opening creating database: " << s.ToString() << endl;
 		else {
 			// Pushing pointer to the database in the stack
-			lua_pushlightuserdata(L, db);
-
+                        DB **dbp = (DB**) lua_newuserdata(L, sizeof(DB*));
+                        *dbp = db;
 			luaL_getmetatable(L, LVLDB_MT_DB);
 			lua_setmetatable(L, -2);
 		}
@@ -386,9 +386,9 @@ static int lvldb_open(lua_State *L) {
  * Close an open DB instance.
  */
 static int lvldb_close(lua_State *L) {
-	DB *db = (DB*) lua_touserdata(L, 1);
+	DB **db = (DB**) lua_touserdata(L, 1);
 
-	delete db;
+	delete *db;
 
 	return 0;
 }
@@ -500,9 +500,10 @@ static int lvldb_write_options_tostring(lua_State *L) {
  */
 static int lvldb_batch(lua_State *L) {
 	WriteBatch batch; // initialization
-	WriteBatch *batchp = &batch; // store pointer
+	WriteBatch **batchp; // store pointer
 
-	lua_pushlightuserdata(L, batchp);
+        batchp = (WriteBatch**) lua_newuserdata(L, sizeof(WriteBatch*)); 
+        *batchp = &batch;
 	luaL_getmetatable(L, LVLDB_MT_BATCH);
 	lua_setmetatable(L, -2);
 
@@ -513,7 +514,7 @@ static int lvldb_batch(lua_State *L) {
  * Check for DB basic consistency.
  */
 static int lvldb_check(lua_State *L) {
-	DB *db = (DB*) lua_touserdata(L, 1);
+	DB **db = (DB**) lua_touserdata(L, 1);
 
 	lua_pushboolean(L, db != NULL ? true : false);
 
@@ -560,7 +561,7 @@ static int lvldb_repair(lua_State *L) {
  *   * False in case of error.
  */
 static int lvldb_database_put(lua_State *L) {
-	DB *db = check_database(L, 1);
+	DB* db = check_database(L, 1);
 
 	Slice key = lua_to_slice(L, 2);
 	Slice value = lua_to_slice(L, 3);
@@ -682,7 +683,8 @@ static int lvldb_database_iterator(lua_State *L) {
 	DB *db = check_database(L, 1);
 
 	Iterator *it = db->NewIterator(lvldb_ropt(L, 2));
-	lua_pushlightuserdata(L, it);
+        Iterator **itp = (Iterator**) lua_newuserdata(L, sizeof(Iterator*)); 
+        *itp = it;
 
 	luaL_getmetatable(L, LVLDB_MT_ITER);
 	lua_setmetatable(L, -2);
@@ -1035,7 +1037,7 @@ LUALIB_API int luaopen_leveldb(lua_State *L) {
 	lua_setfield(L, -2, "_DESCRIPTION");
 
 	// LevelDB methods
-	luaL_setfuncs(L, lvldb_leveldb_m, 0);
+	luaL_register(L, NULL, lvldb_leveldb_m);
 
 	// initialize meta-tables
 	init_metatable(L, LVLDB_MT_DB, lvldb_database_m);
