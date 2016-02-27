@@ -1,4 +1,4 @@
-lua-leveldb
+lua-leveldb (LuaJit compatible version)
 ===========
 Lua bindings for Google's LevelDB key/store database.
 
@@ -153,7 +153,7 @@ The examples above have been adapted to be used as unit tests.
 
 Notes
 -----
-Lua-leveldb is compatible with Lua 5.2, unfortunately it is no more compatible with Lua 5.1.
+This fork of Lua-leveldb is compatible with LuaJIT only.
 
 License
 -------
