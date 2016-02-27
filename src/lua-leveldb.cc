@@ -597,8 +597,7 @@ static int lvldb_database_get(lua_State *L) {
 		string_to_lua(L, value);
 	}
 	else {
-		cerr << "Error getting value (get): " << s.ToString() << endl;
-		lua_pushboolean(L, false);
+		lua_pushnil(L);
 	}
 
 	return 1;
