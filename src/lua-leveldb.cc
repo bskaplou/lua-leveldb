@@ -770,9 +770,9 @@ static int lvldb_iterator_delete(lua_State *L) {
 static int lvldb_iterator_seek(lua_State *L) {
 	Iterator *iter = check_iter(L);
 
-	string start = luaL_checkstring(L, 2);
+        Slice threshold = lua_to_slice(L, 2);
 
-	iter->Seek(start);
+	iter->Seek(threshold);
 
 	return 0;
 }
@@ -812,7 +812,6 @@ static int lvldb_iterator_next(lua_State *L) {
 static int lvldb_iterator_key(lua_State *L) {
 	Iterator *iter = check_iter(L);
 	Slice key = iter->key();
-
 	return string_to_lua(L, key.ToString());
 }
 
